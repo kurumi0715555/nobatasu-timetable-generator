@@ -1,0 +1,889 @@
+/* ============================================
+   timetable-generator.css
+   ツール本体のベースレイヤー（common.css の後に読む。
+   Foundation トークンは common.css を正とし、ここには局所トークンのみ置く）
+   ============================================ */
+
+:root {
+    --primary-dark: #00474B;   /* primary(#006064) の暗方向。hover・見出しに使用 */
+    --text: var(--text-color);
+}
+
+* { box-sizing: border-box; }
+
+/* === レイアウト === */
+.section-title {
+    font-size: 17px;
+    color: var(--primary-dark);
+    border-left: 5px solid var(--primary-color);
+    padding-left: 10px;
+    margin: 18px 0 10px;
+}
+
+.hint { color: var(--gray-darker); font-size: 12.5px; margin: 6px 0; }
+.hint-inline { color: var(--gray-darker); font-size: 11px; font-weight: 400; }
+.note { color: var(--gray-darker); font-size: 12.5px; margin-top: 10px; }
+
+.instructions {
+    background: var(--white);
+    border: 1px solid var(--gray);
+    border-radius: var(--border-radius);
+    padding: 14px 18px;
+    margin-top: 24px;
+    font-size: 13px;
+}
+.instructions h3 { margin: 0 0 8px; color: var(--primary-dark); font-size: 14px; }
+.instructions ol { margin: 0; padding-left: 1.5em; }
+.instructions a { color: var(--primary-color); }
+
+.action-bar { display: flex; gap: 10px; }
+
+/* === ボタン === */
+.btn {
+    border: none;
+    border-radius: var(--border-radius-small);
+    padding: 8px 18px;
+    font-size: 13.5px;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    font-family: inherit;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn-primary { background: var(--primary-color); color: var(--white); }
+.btn-secondary { background: var(--white); color: var(--primary-color); border: 1px solid var(--primary-color); }
+.btn-danger { background: var(--danger-color); color: var(--white); }
+.btn-small { padding: 5px 12px; font-size: 12.5px; }
+.btn-large { padding: 12px 32px; font-size: 15px; font-weight: 700; }
+
+/* === バッジ・アラート === */
+.badge {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.badge-info { background: #eef2f7; color: #3a5a80; }
+.badge-secondary { background: var(--gray-light); color: var(--gray-darker); }
+
+.alert {
+    border-radius: var(--border-radius-small);
+    padding: 10px 14px;
+    margin: 10px 0;
+    font-size: 13px;
+}
+.alert-success {
+    background: #e6fffa;
+    border: 1px solid #9ae0cd;
+    color: var(--success-color);
+    font-weight: 600;
+}
+
+/* === フォーム基本 === */
+input[type="text"], input[type="number"], select {
+    border: 1px solid var(--gray);
+    border-radius: var(--border-radius-small);
+    padding: 5px 8px;
+    font-size: 13px;
+    font-family: inherit;
+    background: var(--white);
+}
+
+/* ============================================
+   以下、ウィザード（tg-*）
+   ============================================ */
+
+/* === ステップナビ === */
+.tg-stepper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+    margin: var(--spacing-lg) 0;
+}
+
+.tg-stepper button {
+    flex: 1 1 0;
+    min-width: 64px;
+    padding: 8px 4px;
+    border: 2px solid var(--gray);
+    background: var(--white);
+    border-radius: var(--border-radius);
+    font-size: 0.8em;
+    font-weight: 600;
+    color: var(--gray-darker);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    line-height: 1.3;
+    font-family: inherit;
+}
+
+.tg-stepper button .tg-step-num {
+    display: block;
+    font-size: 1.15em;
+    color: var(--accent-color);
+}
+
+.tg-stepper button:hover {
+    border-color: var(--secondary-color);
+    transform: translateY(-2px);
+}
+
+.tg-stepper button.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--white);
+}
+
+.tg-stepper button.active .tg-step-num { color: var(--white); }
+
+/* === ステップ本体 === */
+.tg-step { display: none; }
+.tg-step.active { display: block; }
+
+.tg-nav-bar {
+    display: flex;
+    justify-content: space-between;
+    margin-top: var(--spacing-xl);
+}
+
+.tg-block {
+    background: var(--gray-lighter);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md) var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+.tg-block h3 {
+    font-size: 1.05em;
+    color: var(--primary-color);
+    margin: 0 0 var(--spacing-sm);
+}
+
+/* === 小さめの数値・選択入力 === */
+.tg-inline-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+    align-items: center;
+}
+
+.tg-field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.95em;
+}
+
+.tg-field input[type="number"] { width: 64px; padding: 6px 8px; }
+.tg-field select { padding: 6px 8px; }
+
+/* === テーブル共通 === */
+.tg-table-wrap { overflow-x: auto; }
+
+.tg-table {
+    border-collapse: collapse;
+    width: 100%;
+    background: var(--white);
+    font-size: 0.9em;
+}
+
+.tg-table th, .tg-table td {
+    border: 1px solid var(--gray);
+    padding: 6px 8px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.tg-table th {
+    background: var(--primary-color);
+    color: var(--white);
+    font-weight: 600;
+}
+
+.tg-table td.tg-left { text-align: left; }
+.tg-table td.tg-na { color: #c3c8d1; background: var(--gray-lighter); }
+
+.tg-table input[type="number"] {
+    width: 52px;
+    padding: 4px 6px;
+    text-align: center;
+}
+
+.tg-table select { padding: 4px 6px; max-width: 130px; }
+
+.tg-table td.zero { color: #c3c8d1; }
+.tg-table td.tg-auto, .tg-auto { background: #eef0f4; color: var(--gray-darker); }
+.tg-sum-ok { color: var(--success-color); font-weight: 700; }
+.tg-sum-ng { color: var(--danger-color); font-weight: 700; }
+.tg-sum-warn { color: var(--warning-color); font-weight: 700; }
+
+/* === 出講可能グリッド === */
+.tg-avail-grid td {
+    cursor: pointer;
+    user-select: none;
+    width: 44px;
+    height: 32px;
+}
+
+.tg-avail-grid td.ok { background: #e8f5e9; color: #2e7d32; }
+.tg-avail-grid td.ng { background: #ffebee; color: #c62828; font-weight: 700; }
+.tg-avail-grid td.na { background: var(--gray-light); cursor: default; }
+
+.tg-avail-grid th.tg-day-toggle { cursor: pointer; }
+
+/* === 教員カード === */
+.tg-teacher-card {
+    background: var(--white);
+    border: 1px solid var(--gray);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+}
+
+.tg-teacher-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    align-items: center;
+}
+
+.tg-teacher-head input[type="text"] { width: 140px; padding: 6px 8px; }
+.tg-teacher-head .tg-move-btns { display: flex; gap: 3px; }
+.tg-teacher-head .tg-move-btns button {
+    border: 1px solid var(--gray);
+    background: var(--white);
+    border-radius: var(--border-radius-small);
+    width: 26px;
+    height: 26px;
+    cursor: pointer;
+    color: var(--primary-color);
+    font-size: 11px;
+}
+
+.tg-teacher-card details { margin-top: var(--spacing-sm); }
+.tg-teacher-card summary {
+    cursor: pointer;
+    color: var(--primary-color);
+    font-size: 0.9em;
+    font-weight: 600;
+}
+
+/* === クラス担当カード === */
+.tg-class-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.tg-class-card {
+    background: var(--white);
+    border: 1px solid var(--gray);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+}
+
+.tg-class-card h4 {
+    color: var(--primary-color);
+    margin: 0 0 var(--spacing-sm);
+    font-size: 1em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.tg-class-card .tg-copy-grade { margin-left: auto; }
+
+.tg-class-card table { width: 100%; font-size: 0.88em; border-collapse: collapse; }
+.tg-class-card td { padding: 3px 4px; border-bottom: 1px solid var(--gray-light); }
+.tg-class-card td:first-child { white-space: nowrap; width: 5.5em; }
+.tg-class-card select { width: 100%; padding: 3px 4px; }
+.tg-class-card td.tg-unassigned { background: #fff3e0; }
+.tg-class-card tr.tg-dim { opacity: .45; }
+.tg-class-card td.tg-sc-hours-cell { white-space: nowrap; width: 3.5em; font-size: .92em; color: var(--gray-darker); }
+.tg-class-card input.tg-sc-hours { width: 46px; padding: 2px 4px; text-align: center; }
+
+/* === 生徒 教科トグル === */
+.tg-subj-toggle {
+    display: inline-block;
+    padding: 3px 8px;
+    margin: 2px;
+    border-radius: 999px;
+    border: 1px solid var(--gray);
+    font-size: 0.82em;
+    cursor: pointer;
+    user-select: none;
+    background: var(--white);
+}
+
+.tg-subj-toggle.support {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--white);
+}
+
+/* === 警告/エラー行 === */
+.tg-warn {
+    background: #fff3e0;
+    border-left: 4px solid var(--warning-color);
+    padding: 8px 12px;
+    border-radius: var(--border-radius-small);
+    margin: var(--spacing-sm) 0;
+    font-size: 0.9em;
+}
+
+.tg-error {
+    background: #ffebee;
+    border-left: 4px solid var(--danger-color);
+    padding: 8px 12px;
+    border-radius: var(--border-radius-small);
+    margin: var(--spacing-sm) 0;
+    font-size: 0.9em;
+}
+
+/* === Step 8 統一優先順位 === */
+.tg-phys-block {
+    background: var(--gray-lighter);
+    border: 1px solid var(--gray);
+    border-radius: var(--border-radius);
+    padding: 12px 14px;
+    margin-bottom: var(--spacing-lg);
+}
+
+.tg-phys-block h3 {
+    color: var(--gray-darker);
+    font-size: 0.95rem;
+    margin: 0 0 8px;
+}
+
+.tg-phys-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 6px 12px;
+}
+
+.tg-phys-list li {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--gray-darker);
+    font-size: 0.88rem;
+}
+
+.tg-phys-fixed {
+    display: inline-block;
+    flex-shrink: 0;
+    border-radius: 999px;
+    padding: 1px 7px;
+    background: var(--gray-light);
+    border: 1px solid var(--gray);
+    color: var(--gray-darker);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.tg-prio-title {
+    color: var(--primary-dark);
+    font-size: 1rem;
+    margin: 0 0 4px;
+}
+
+.tg-prio-list {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0;
+}
+
+.tg-prio-list li {
+    background: var(--white);
+    border: 1px solid var(--gray);
+    border-radius: var(--border-radius);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tg-prio-rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: var(--white);
+    font-weight: 700;
+}
+
+.tg-prio-level {
+    flex: 0 0 96px;
+    width: 96px;
+}
+
+.tg-prio-level:disabled {
+    background: var(--gray-lighter);
+    color: var(--gray-darker);
+    cursor: not-allowed;
+}
+
+.tg-prio-label {
+    flex: 1 1 300px;
+    min-width: 180px;
+}
+
+.tg-prio-label #softGapMax {
+    width: 54px;
+    margin: 0 3px;
+}
+
+.tg-prio-5d {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 1px 7px;
+    background: #eef2f7;
+    color: #3a5a80;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.tg-prio-part-hint {
+    display: block;
+    margin-top: 2px;
+    color: var(--gray-darker);
+    font-size: 0.75rem;
+}
+
+.tg-prio-move {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 4px;
+}
+
+.tg-prio-move button,
+.tg-prio-remove {
+    border: 1px solid var(--gray);
+    background: var(--white);
+    border-radius: var(--border-radius-small);
+    min-width: 30px;
+    height: 30px;
+    cursor: pointer;
+    color: var(--primary-color);
+    font-family: inherit;
+}
+
+.tg-prio-move button:disabled {
+    color: var(--gray);
+    background: var(--gray-lighter);
+    cursor: default;
+}
+
+.tg-prio-remove {
+    padding: 0 9px;
+    color: var(--danger-color);
+    border-color: #e8c3ca;
+    font-size: 0.8rem;
+}
+
+.tg-prio-add {
+    margin: 10px 0 var(--spacing-lg);
+}
+
+.tg-prio-add select {
+    max-width: 100%;
+    min-width: 180px;
+}
+
+.tg-summary-block .tg-prio-summary {
+    padding-left: 0;
+    margin: 8px 0 0;
+}
+
+.tg-prio-summary li {
+    flex-wrap: nowrap;
+    padding: 8px 10px;
+}
+
+.tg-prio-summary .tg-prio-label {
+    min-width: 0;
+}
+
+.tg-summary-block {
+    background: var(--white);
+    border: 1px solid var(--gray);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    font-size: 0.92em;
+}
+
+.tg-summary-block h3 { color: var(--primary-color); font-size: 1em; margin: 0 0 8px; }
+.tg-summary-block ul { padding-left: 1.4em; margin: 0; }
+
+.tg-generate-bar {
+    text-align: center;
+    margin: var(--spacing-xl) 0 var(--spacing-md);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.tg-budget-label {
+    font-size: 0.9rem;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.tg-budget-label select {
+    margin-left: 4px;
+    padding: 6px 8px;
+    border: 1px solid var(--gray);
+    border-radius: var(--border-radius-small);
+    font-size: 0.9rem;
+}
+
+/* === 提案（この条件を変えると組める） === */
+.tg-suggest {
+    border-left: 4px solid var(--primary-color);
+    background: #fdf3f5;
+    border-radius: var(--border-radius-small);
+    padding: 10px 14px;
+    margin: 10px 0;
+}
+
+.tg-suggest h3 {
+    font-size: 0.95rem;
+    margin: 0 0 6px;
+    color: var(--primary-dark);
+}
+
+.tg-suggest ul {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 0.9rem;
+}
+
+.tg-suggest li { margin: 3px 0; }
+
+/* === ベスト3案タブ === */
+.tg-alt-tabs {
+    display: flex;
+    gap: 6px;
+    margin: 12px 0 4px;
+    flex-wrap: wrap;
+}
+
+.tg-alt-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 8px 14px;
+    border: 1px solid var(--gray);
+    border-radius: var(--border-radius-small);
+    background: var(--white);
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.tg-alt-tab .tg-alt-sub {
+    font-size: 0.72rem;
+    font-weight: 400;
+    color: var(--gray-darker);
+}
+
+.tg-alt-tab.active {
+    border-color: var(--primary-color);
+    background: #fdf3f5;
+    color: var(--primary-dark);
+}
+
+/* === 未配置の阻害要因表 === */
+.tg-blockers td { font-size: 0.75rem; text-align: center; }
+.tg-blockers .tg-sum-ok { background: #d9ead3; }
+
+/* === 同日重複セル（絶対条件違反の安全網。原則出ないが、残った場合に見逃さない） === */
+.tg-ov-dup {
+    background: #f8d7da !important;
+    color: #b02a37;
+    font-weight: 700;
+    outline: 2px solid #b02a37;
+    outline-offset: -2px;
+}
+
+/* === 生成中のライブプレビュー（試行中の盤面） === */
+.tg-live-wrap {
+    margin: 10px 0;
+    max-width: 640px;
+    overflow-x: auto;
+}
+
+.tg-live-table {
+    border-collapse: collapse;
+    margin: 0 auto;
+    table-layout: fixed;
+}
+
+.tg-live-table th, .tg-live-table td {
+    border: 1px solid var(--gray-light);
+    font-size: 9px;
+    line-height: 1;
+    padding: 2px 1px;
+    width: 15px;
+    text-align: center;
+    color: var(--gray-darker);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.tg-live-table thead th { background: var(--gray-lighter); font-weight: 600; }
+.tg-live-table tbody th { width: 30px; background: var(--gray-lighter); font-weight: 600; }
+.tg-live-table td.f { background: #f3e9eb; color: var(--primary-dark); }
+
+.tg-live-week {
+    margin: 10px 0 14px;
+}
+
+.tg-live-week-title {
+    margin: 0 0 4px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-align: center;
+    color: var(--gray-darker);
+}
+
+.tg-live-table td.tg-live-var {
+    background: #eee8ff;
+    color: #5b3f9a;
+}
+
+.tg-live-note {
+    font-size: 0.75rem;
+    color: var(--gray-darker);
+    text-align: center;
+    margin-top: 4px;
+}
+
+/* === 絶対条件の達成サマリー === */
+.tg-hard-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 0.9rem;
+}
+
+.tg-hard-list > li {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--gray-light);
+}
+
+.tg-hard-mark {
+    display: inline-block;
+    width: 1.6em;
+    font-weight: 700;
+    text-align: center;
+}
+
+.tg-hard-ok .tg-hard-mark { color: var(--success-color); }
+.tg-hard-warn .tg-hard-mark { color: var(--warning-color); }
+.tg-hard-ng .tg-hard-mark { color: var(--danger-color); }
+.tg-hard-ng .tg-hard-label { color: var(--danger-color); font-weight: 600; }
+
+.tg-hard-notes {
+    margin: 3px 0 0 2em;
+    padding-left: 16px;
+    font-size: 0.8rem;
+    color: var(--gray-darker);
+}
+
+/* === 優先順位の達成境界線 === */
+.tg-boundary > td {
+    border-top: 2px solid #b02a37;
+}
+
+.tg-boundary-badge {
+    display: inline-block;
+    margin-left: 6px;
+    border-radius: 999px;
+    padding: 1px 7px;
+    background: #f8d7da;
+    color: #b02a37;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.tg-all-soft-ok {
+    margin: 8px 0 0;
+    color: var(--success-color);
+    font-weight: 600;
+}
+
+/* === できれば条件の内訳展開 === */
+.tg-soft-det { margin-top: 4px; }
+
+.tg-soft-det summary {
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--primary-dark);
+}
+
+.tg-soft-det ul {
+    margin: 4px 0 0;
+    padding-left: 18px;
+    font-size: 0.82rem;
+    color: var(--text);
+}
+
+.tg-soft-det li { margin: 2px 0; }
+
+/* === 教員別一覧の複数授業列挙・ソフト条件の数え方説明 === */
+.tg-ov-multi { display: block; white-space: nowrap; }
+
+/* 非常勤の「準備の時間」（授業と授業の間の空きコマ） */
+.tg-ov-prep {
+    background: #eef7ee;
+    color: var(--success-color);
+    font-size: 0.75rem;
+    text-align: center;
+}
+
+.tg-soft-desc {
+    font-size: 0.75rem;
+    color: var(--gray-darker);
+    font-weight: 400;
+}
+
+/* === 非常勤の条件（5d） === */
+.tg-part-table th, .tg-part-table td { text-align: center; vertical-align: middle; }
+.tg-part-table input[type="number"] { width: 90px; padding: 4px 6px; border: 1px solid var(--gray); border-radius: var(--border-radius-small); }
+.tg-part-table select { padding: 4px 6px; border: 1px solid var(--gray); border-radius: var(--border-radius-small); }
+.tg-part-table .tg-part-sum { font-size: 0.8rem; color: var(--gray-darker); }
+
+
+/* === 追加ボタン行 === */
+.tg-add-bar { margin: var(--spacing-sm) 0; }
+
+/* === 生成結果 === */
+.tg-res-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: var(--spacing-md);
+    margin: var(--spacing-md) 0;
+}
+.tg-res-title {
+    color: var(--primary-dark);
+    border-left: 4px solid var(--primary-color);
+    padding-left: 8px;
+    font-size: 14px;
+    margin: 14px 0 6px;
+}
+.tg-res-table td { height: 40px; white-space: normal; padding: 2px 3px; }
+.tg-res-table .tg-res-subject { display: block; font-weight: 700; font-size: 12px; }
+
+.tg-res-teacher-weeks {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.tg-res-week-title {
+    color: var(--primary-dark);
+    font-size: 14px;
+    margin: 4px 0 6px;
+}
+
+@media (max-width: 900px) {
+    .tg-res-teacher-weeks {
+        grid-template-columns: 1fr;
+    }
+}
+.tg-res-table .tg-res-teacher { display: block; font-size: 10px; color: var(--gray-darker); }
+.tg-res-table td.tg-res-free { color: #c3c8d1; background: #fafbfd; }
+.tg-res-table td.tg-res-var { background: #fdf6e3; }
+.tg-res-table td.na { background: var(--gray-light); }
+
+/* === レスポンシブ === */
+@media (max-width: 600px) {
+    .tg-stepper button { min-width: 30%; }
+    .tg-class-grid { grid-template-columns: 1fr; }
+}
+
+/* === 生成プロセス === */
+.tg-process {
+    background: var(--white);
+    border: 1px solid var(--gray);
+    border-radius: var(--border-radius);
+    padding: 14px 18px 14px 38px;
+    margin: 10px 0;
+    font-size: 13px;
+}
+.tg-process li { margin-bottom: 8px; line-height: 1.7; }
+
+/* === 生成中オーバーレイ === */
+#tgSolverOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(43, 47, 54, .55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+}
+.tg-solver-box {
+    background: var(--white);
+    border-radius: 12px;
+    padding: 28px 36px;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, .3);
+    min-width: 320px;
+}
+.tg-spinner {
+    width: 44px;
+    height: 44px;
+    margin: 0 auto 14px;
+    border: 5px solid var(--gray-light);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: tg-spin 0.9s linear infinite;
+}
+@keyframes tg-spin { to { transform: rotate(360deg); } }
+.tg-solver-title { font-weight: 700; color: var(--primary-dark); font-size: 15px; margin-bottom: 6px; }
+.tg-solver-status { font-size: 12.5px; color: var(--gray-darker); margin-bottom: 14px; min-height: 1.4em; }
+
+/* === 一覧表 === */
+.tg-ov-table { border-collapse: collapse; font-size: 10.5px; white-space: nowrap; }
+.tg-ov-table th, .tg-ov-table td {
+    border: 1px solid var(--line, #d9dce3);
+    padding: 2px 4px;
+    text-align: center;
+    min-width: 34px;
+}
+.tg-ov-table thead th { background: var(--primary-color); color: #fff; }
+.tg-ov-table th.tg-ov-name {
+    background: var(--brand-pale, #fdf0f2);
+    color: var(--primary-dark);
+    position: sticky;
+    left: 0;
+    min-width: 72px;
+}
+.tg-ov-table td.tg-ov-rot { background: #d9ead3; }   /* A週とB週で違うコマ */
+.tg-ov-table td.tg-ov-sup { background: #fdf6e3; }   /* 支援学級で受けるコマ */
+.tg-ov-table td.tg-ov-empty { color: #c3c8d1; }
+.tg-ov-table .tg-ov-a { display: block; font-size: 9px; color: #5a7d52; }
+.tg-ov-count { font-weight: 700; }
+
+/* === 印刷 === */
+@media print {
+    .no-print { display: none !important; }
+}

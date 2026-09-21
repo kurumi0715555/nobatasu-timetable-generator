@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    
+    <link rel="stylesheet" href="common/css/common.css">
+    <link rel="stylesheet" href="css/timetable-generator.css">
+    <link rel="stylesheet" href="css/redesign.css">
+    <link rel="stylesheet" href="common/vendor/fontawesome/css/fontawesome.css">
+<link rel="stylesheet" href="common/vendor/fontawesome/css/solid.css">
+<title>時間割作成ツール</title>
+<link rel="stylesheet" href="oss/standalone.css">
+<script defer src="oss/standalone.js"></script>
+</head>
+<body>
+    <div class="site-wrapper">
+        <aside class="ad-left"><!-- Ads injected by common-ads.js --></aside>
+
+        <div class="container">
+            <header>
+                <h1><i class="fas fa-table-cells"></i> 時間割作成ツール</h1>
+                <p class="subtitle">条件を入力すると時間割の下書きを自動生成。手直しして印刷・Excelへ</p>
+            </header>
+
+            <main>
+                <div class="privacy-badge">
+                    <i class="fas fa-lock"></i>
+                    <span>入力データはこのブラウザにのみ保存され、サーバーには送信されません</span>
+                </div>
+
+                <!-- 自動保存に失敗している間だけ出す警告（プライベートモード・サイトデータのブロック・容量超過）。
+                     中身と表示/非表示は timetable-generator.js の renderStorageWarn() が管理する。
+                     role="alert" は、画面を読み上げて使っている人にも出た瞬間に伝えるため。
+                     下までスクロールしても消えないよう、CSS で画面の上端に貼り付けている -->
+                <div class="tg-warn no-print" id="tgStorageWarn" role="alert" hidden></div>
+
+                <!-- 保存されていた設定の辻褄を起動時に直したときの案内。
+                     ここでブラウザ標準のダイアログを出さないのは、授業直前に開いて
+                     そのまま投影する使い方があるため（docs/design-system.md §12-A A-6）。
+                     中身と表示/非表示は timetable-generator.js の showVarFixNotice() が管理する -->
+                <div class="tg-warn no-print" id="tgVarFixNotice" role="status" hidden></div>
+
+                <!-- ステップナビ -->
+                <nav class="tg-stepper no-print" id="tgStepper" aria-label="入力ステップ"></nav>
+
+                <!-- 各ステップ -->
+                <div class="tg-steps">
+                    <section class="tg-step" data-step="1">
+                        <h2 class="section-title">Step 1: 週の骨格とクラス数</h2>
+                        <div id="step1Body"></div>
+                    </section>
+
+                    <section class="tg-step" data-step="2">
+                        <h2 class="section-title">Step 2: 固定コマ（学活・道徳・総合）</h2>
+                        <p class="hint">特別支援学級は複式（異学年混在）が前提のため、デフォルトは全学年同じ時間です。学年ごとに変えたい場合のみ変更してください。</p>
+                        <div id="step2Body"></div>
+                    </section>
+
+                    <section class="tg-step" data-step="3">
+                        <h2 class="section-title">Step 3: 変動枠（ローテーション）の中身</h2>
+                        <p class="hint">35週で割り切れない教科（音楽45・美術45・総合50など）を、週替わりで回す枠です。</p>
+                        <div id="step3Body"></div>
+                    </section>
+
+                    <section class="tg-step" data-step="4">
+                        <h2 class="section-title">Step 4: 教科と週コマ数</h2>
+                        <p class="hint">標準授業時数から計算した初期値が入っています。自校の運用に合わせて修正してください。</p>
+                        <div id="step4Body"></div>
+                    </section>
+
+                    <section class="tg-step" data-step="5">
+                        <h2 class="section-title">Step 5: 教員マスタと担当割り</h2>
+                        <div id="step5Body"></div>
+                    </section>
+
+                    <section class="tg-step" data-step="6">
+                        <h2 class="section-title">Step 6: 特別支援学級</h2>
+                        <div id="step6Body"></div>
+                    </section>
+
+                    <section class="tg-step" data-step="7">
+                        <h2 class="section-title">Step 7: 特別教室・施設</h2>
+                        <div id="step7Body"></div>
+                    </section>
+
+                    <section class="tg-step" data-step="8">
+                        <h2 class="section-title">Step 8: 「できれば」の条件</h2>
+                        <p class="hint">すべての方針条件（できれば条件・非常勤の個別条件）を1つのリストに並べて、優先順位と「絶対／できれば」をここで決めます。</p>
+                        <div id="step8Body"></div>
+                    </section>
+
+                    <section class="tg-step" data-step="9">
+                        <h2 class="section-title">Step 9: 最終確認と優先順位</h2>
+                        <div id="step9Body"></div>
+                        <div id="solverResult"></div>
+                    </section>
+
+                    <section class="tg-step" data-step="10">
+                        <h2 class="section-title">Step 10: 手直し（できた時間割を調整する）</h2>
+                        <div id="step10Body"></div>
+                    </section>
+                </div>
+
+                <!-- 前へ/次へ -->
+                <div class="action-bar no-print tg-nav-bar">
+                    <button class="btn btn-secondary" id="prevBtn"><i class="fas fa-arrow-left"></i> 前へ</button>
+                    <button class="btn btn-primary" id="nextBtn">次へ <i class="fas fa-arrow-right"></i></button>
+                </div>
+
+                <!-- 使い方セクション -->
+                <details class="instructions" id="tgHowto" open>
+                    <summary><i class="fas fa-info-circle"></i> 使い方</summary>
+                    <ol>
+                        <li><strong>Step 1〜8</strong>：学校の条件を順番に入力します（入力は自動保存されます）</li>
+                        <li><strong>Step 9</strong>：すべての条件を確認し、「できれば」条件に優先順位を付けます</li>
+                        <li><strong>時間割を組む</strong>：条件を満たす下書きを自動生成します。<strong>Step 10（手直し）</strong>で個別のコマを動かして仕上げます</li>
+                    </ol>
+                    <p class="note"><i class="fas fa-lightbulb"></i> <strong>ヒント</strong>：Step 1（週の骨格）が全ステップの土台です。あとから変更すると教員の出講表などに影響します。</p>
+                </details>
+            </main>
+
+            <div class="ad-horizontal no-print">
+                <div class="ad-label">広告</div>
+                <div class="ad-horizontal-content">
+                    <i class="fas fa-rectangle-ad"></i>
+                    <p>728×90 レクタングル（大）バナー広告</p>
+                </div>
+            </div>
+
+            <footer><!-- Footer will be injected by common-footer.js --></footer>
+        </div>
+
+        <aside class="ad-right"><!-- Ads injected by common-ads.js --></aside>
+    </div>
+
+    <!-- どれも DOM の完成後に動けばよく、実行順もこの並びのままでよいので defer を付ける。
+         パースを止めずに並行ダウンロードできるぶん、最初の画面が出るまでが速くなる -->
+    
+    
+    
+    
+    
+    <!-- ?v= は4本まとめて同じ値に上げること。ワーカー（solver-worker.js）は
+         timetable-generator.js の ?v= を継承して solver.js を読むため、
+         バラバラに上げるとメインとワーカーで別バージョンの solver が動く -->
+    <script defer src="js/sample-data.js"></script>
+    <script defer src="js/solver.js"></script>
+    <!-- exceljs（約950KB）はここでは読み込まない。「Excelで書き出す」まで一切使わないので、
+         excel-export.js が必要になった時に自分で読みに行く（初回表示を軽くするため） -->
+    <script defer src="js/excel-export.js"></script>
+    <script defer src="js/timetable-generator.js"></script>
+</body>
+</html>

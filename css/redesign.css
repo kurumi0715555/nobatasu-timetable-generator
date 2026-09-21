@@ -1,0 +1,947 @@
+/* ============================================================
+   時間割作成ツール — UI刷新レイヤー
+   timetable-generator.css の後に読み込み、クラス名は一切変えずに
+   見た目と情報の優先順位だけを作り直す。
+   状態色は dataviz スキルのバリデータで検証済み:
+     ok #1a7f37 / warn #d29a00 / ng #a31d2f （CVD ΔE≥13・通常視 ΔE≥23）
+   ============================================================ */
+
+:root {
+    /* ブランド（NOBATASU ダークシアン）と紙面 */
+    --brand: #006064;
+    --brand-dark: #00474B;
+    --brand-tint: #E0F7FA;
+    --paper: #FDF5E6;          /* NOBATASU のソフトベージュ */
+    --surface: #ffffff;
+    --ink: #24292f;
+    --ink-muted: #6a7280;
+    --line: #e6e1d8;
+    --line-strong: #d5cfc4;
+
+    /* 状態色（検証済み） */
+    --ok: #1a7f37;    --ok-bg: #e9f5ec;    --ok-line: #bfe3c9;
+    --warn: #d29a00;  --warn-ink: #8a6500; --warn-bg: #fdf6e0; --warn-line: #ecd9a0;
+    --ng: #a31d2f;    --ng-bg: #fbecee;    --ng-line: #eec3ca;
+
+    --radius: 12px;
+    --shadow-card: 0 1px 3px rgba(36, 30, 24, .07), 0 1px 2px rgba(36, 30, 24, .05);
+}
+
+/* === 下地と文字 === */
+body {
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 14.5px;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* === 画面幅への最適化 ===
+   基準は一般的なノートPC（1280〜1536px）。余白を絞って本文を広く使う。
+   21〜24インチの外部モニター（1680px〜）ではさらに広げる。
+   手直しページのA週・B週は、以前は広い画面で横並びにしていたが、
+   1週あたりの幅が半分になって字が詰まり読みにくかったため、
+   教員別一覧と同じ「横いっぱいの表を縦に積む」形に戻した（実運用レビュー 2026-07-30）。 */
+.container { max-width: 1280px; }
+
+@media (min-width: 1680px) {
+    .container { max-width: 1620px; }
+    body { font-size: 15px; }
+    /* 結果画面の教員別・一覧表も余白いっぱいに広がる（max-widthの拡大で自動） */
+}
+
+/* A週・B週は縦積み。表は教員別一覧と同じ大きさ感になるよう横幅いっぱいを使う
+   （横並びだった頃の名残で、縦にしても幅が余ってマスが小さいままだった） */
+#tgEditTables .tg-edit-week + .tg-edit-week { margin-top: 18px; }
+#tgEditTables .tg-ov-table { width: 100%; }
+
+/* === サンプルデータの案内カード（Step 1・未入力のときだけ出る） === */
+.tg-sample-card {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--brand-tint);
+    border: 1px solid var(--brand);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin: 0 0 18px;
+}
+.tg-sample-card h3 {
+    margin: 0 0 6px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--brand-dark);
+}
+.tg-sample-card p { margin: 0 0 8px; font-size: 13px; }
+.tg-sample-card ul {
+    margin: 0;
+    padding-left: 1.3em;
+    font-size: 12.5px;
+    color: var(--ink-muted);
+}
+.tg-sample-card li { margin-bottom: 2px; }
+.tg-sample-body { flex: 1 1 380px; }
+.tg-sample-actions {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
+}
+/* 共通CSSの .hint は薄い背景を持つ。ボタンの下では「もう1つのボタン」に見えるので背景を外す */
+.tg-sample-actions .hint {
+    font-size: 11.5px;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+/* === 生成中オーバーレイ: 画面内に収めて常に中央 ===
+   箱に高さ上限がないと、ライブプレビュー（2週分の表）で画面より縦長になり
+   中央揃えのまま上下にはみ出して「ズレて見える」。上限を付けて中身をスクロールさせる。 */
+#tgSolverOverlay { padding: 20px; }
+.tg-solver-box {
+    max-height: 92vh;
+    max-width: min(94vw, 820px);
+    overflow-y: auto;
+    border-radius: 14px;
+}
+.tg-live-wrap { max-width: 100%; }
+
+/* === 自動保存ができないときの警告 === */
+/* 保存に失敗するのは Step 9 の生成直後や Step 10 の手直し中で、そのとき画面はずっと下まで
+   スクロールしている。上端に置いたままだと一度も目に入らないので、画面の上に貼り付ける。
+   ステッパー（z-index 40）より手前に出すのは、作業が消えることの案内を隠さないため。
+   --tg-warn-h はこの警告の実測の高さ（JS が入れる）。下に貼り付く要素をその分だけ下げる。 */
+#tgStorageWarn {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    margin: 0 0 8px;   /* 上の余白を消して上端にぴったり貼る（下の8pxは --tg-warn-h に含める） */
+}
+
+/* === ステッパー（進行が一目で分かる数珠つなぎ） === */
+.tg-stepper {
+    position: sticky;
+    top: var(--tg-warn-h, 0px);   /* 自動保存の警告が出ている間は、その下に貼り付く */
+    z-index: 40;
+    display: flex;
+    flex-wrap: nowrap;   /* 折り返さず1行スクロール（折り返すと画面を占領する） */
+    gap: 0;
+    overflow-x: auto;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 6px;
+    margin: 12px 0 16px;
+    scrollbar-width: thin;
+}
+.tg-stepper button {
+    flex: 1 1 0;
+    min-width: 86px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    background: transparent;
+    border: none;
+    border-radius: 9px;
+    padding: 8px 4px 7px;
+    font-size: 11.5px;
+    line-height: 1.25;
+    color: var(--ink-muted);
+    cursor: pointer;
+    position: relative;
+    transition: background .15s ease;
+}
+.tg-stepper button:hover { background: var(--brand-tint); color: var(--brand-dark); }
+.tg-stepper button .tg-step-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--line-strong);
+    color: var(--ink-muted);
+    font-weight: 700;
+    font-size: 12.5px;
+    margin: 0;
+}
+/* 済んだ（＝現在より前の）ステップ */
+.tg-stepper button.done { color: var(--ink-muted); }
+.tg-stepper button.done .tg-step-num {
+    background: var(--brand-tint);
+    border-color: var(--brand);
+    color: var(--brand);
+}
+/* いまのステップ */
+.tg-stepper button.active {
+    background: var(--brand);
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(122, 21, 37, .35);
+}
+.tg-stepper button.active .tg-step-num {
+    background: #fff;
+    border-color: #fff;
+    color: var(--brand);
+}
+@media (max-width: 900px) {
+    .tg-stepper button { min-width: 70px; font-size: 10.5px; }
+    .tg-stepper button .tg-step-num { width: 22px; height: 22px; font-size: 11px; }
+}
+
+/* === ステップ本体をカードに === */
+.tg-step.active {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 18px 22px 22px;
+}
+.section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+    border-left: none;
+    padding-left: 0;
+    margin: 4px 0 4px;
+}
+.section-title::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--brand);
+    margin-right: 9px;
+    vertical-align: 2px;
+}
+.tg-step > .hint { margin-top: 0; }
+
+.tg-block {
+    background: #fbfaf8;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 12px 0;
+}
+.tg-block h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--brand-dark);
+    margin: 0 0 10px;
+}
+
+.hint { color: var(--ink-muted); font-size: 12.5px; }
+
+/* === ボタン === */
+.btn {
+    border-radius: 9px;
+    font-weight: 600;
+    padding: 9px 18px;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary {
+    background: var(--brand);
+    box-shadow: 0 1px 3px rgba(122, 21, 37, .3);
+}
+.btn-primary:hover { background: var(--brand-dark); filter: none; }
+.btn-secondary { border: 1.5px solid var(--brand); }
+.btn-large { padding: 14px 36px; font-size: 16px; border-radius: 11px; }
+.btn-ghost {
+    background: transparent;
+    color: var(--ink-muted);
+    border: 1px solid var(--line-strong);
+}
+.btn-ghost:hover { color: var(--brand); border-color: var(--brand); filter: none; }
+
+/* 前へ/次へ */
+.tg-nav-bar {
+    justify-content: space-between;
+    margin-top: 14px;
+}
+
+/* === 入力 === */
+input[type="text"], input[type="number"], select {
+    border: 1px solid var(--line-strong);
+    border-radius: 7px;
+    font-family: inherit;
+}
+input[type="text"]:focus, input[type="number"]:focus, select:focus {
+    outline: 2px solid rgba(155, 27, 48, .35);
+    outline-offset: 1px;
+    border-color: var(--brand);
+}
+
+/* === 通知（状態は色＋印＋文字の三重で伝える） === */
+.alert-success, .tg-warn, .tg-error {
+    border-radius: 10px;
+    padding: 10px 14px 10px 38px;
+    position: relative;
+    font-size: 13.5px;
+    line-height: 1.55;
+}
+.alert-success::before, .tg-warn::before, .tg-error::before {
+    position: absolute;
+    left: 12px;
+    top: 9px;
+    font-weight: 700;
+    font-size: 15px;
+}
+.alert-success { background: var(--ok-bg); border: 1px solid var(--ok-line); color: #14532d; }
+.alert-success::before { content: "○"; color: var(--ok); }
+.tg-warn { background: var(--warn-bg); border: 1px solid var(--warn-line); color: #6b5000; }
+.tg-warn::before { content: "△"; color: var(--warn-ink); }
+.tg-error { background: var(--ng-bg); border: 1px solid var(--ng-line); color: #7f1d2b; }
+.tg-error::before { content: "！"; color: var(--ng); }
+
+/* === 結果画面: 結論ファーストのヒーロー === */
+.tg-hero {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px 22px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 6px solid var(--line-strong);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 18px 22px;
+    margin: 10px 0 14px;
+}
+.tg-hero.ok   { border-left-color: var(--ok); }
+.tg-hero.warn { border-left-color: var(--warn); }
+.tg-hero.ng   { border-left-color: var(--ng); }
+.tg-hero-mark {
+    font-size: 40px;
+    font-weight: 700;
+    line-height: 1;
+    min-width: 48px;
+    text-align: center;
+}
+.tg-hero.ok   .tg-hero-mark { color: var(--ok); }
+.tg-hero.warn .tg-hero-mark { color: var(--warn-ink); }
+.tg-hero.ng   .tg-hero-mark { color: var(--ng); }
+.tg-hero-main { flex: 1 1 260px; }
+.tg-hero-title { font-size: 17.5px; font-weight: 700; margin: 0 0 2px; }
+.tg-hero-sub { font-size: 12.5px; color: var(--ink-muted); margin: 0; }
+.tg-hero-stats {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.tg-stat {
+    background: #fbfaf8;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 14px;
+    text-align: center;
+    min-width: 84px;
+}
+.tg-stat b {
+    display: block;
+    font-size: 19px;
+    line-height: 1.2;
+    color: var(--ink);
+}
+.tg-stat.ok b { color: var(--ok); }
+.tg-stat.warn b { color: var(--warn-ink); }
+.tg-stat.ng b { color: var(--ng); }
+.tg-stat span { font-size: 11px; color: var(--ink-muted); }
+.tg-hero-actions {
+    flex-basis: 100%;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-top: 4px;
+    border-top: 1px dashed var(--line);
+}
+
+/* 注意・メモのたたみ込み */
+.tg-notes-fold {
+    margin: 10px 0;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    padding: 0;
+}
+.tg-notes-fold > summary {
+    cursor: pointer;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-muted);
+    list-style: none;
+}
+.tg-notes-fold > summary::before { content: "▸ "; color: var(--brand); }
+.tg-notes-fold[open] > summary::before { content: "▾ "; }
+.tg-notes-fold > .tg-warn, .tg-notes-fold > .tg-error { margin: 6px 10px; }
+
+/* === 絶対条件リスト === */
+.tg-hard-list { list-style: none; padding: 0; margin: 6px 0; }
+.tg-hard-list > li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    background: #fbfaf8;
+    border: 1px solid var(--line);
+}
+.tg-hard-list > li.tg-hard-ok   { background: var(--ok-bg); border-color: var(--ok-line); }
+.tg-hard-list > li.tg-hard-warn { background: var(--warn-bg); border-color: var(--warn-line); }
+.tg-hard-list > li.tg-hard-ng   { background: var(--ng-bg); border-color: var(--ng-line); }
+.tg-hard-mark { font-weight: 700; font-size: 15px; }
+.tg-hard-ok .tg-hard-mark { color: var(--ok); }
+.tg-hard-warn .tg-hard-mark { color: var(--warn-ink); }
+.tg-hard-ng .tg-hard-mark { color: var(--ng); }
+.tg-hard-label { font-weight: 600; font-size: 13.5px; }
+.tg-hard-notes { flex-basis: 100%; margin: 2px 0 0; padding-left: 26px; font-size: 12px; color: var(--ink-muted); }
+
+/* === 表 === */
+.tg-table, .tg-ov-table { border-radius: 8px; overflow: hidden; }
+.tg-table th { background: #f3efe8; color: var(--ink); }
+.tg-table tbody tr:hover td { background: #fdf9f2; }
+.tg-ov-table thead th { background: var(--brand); }
+/* 行の縞模様は「色の付いていないマス」だけに掛ける。
+   すべての td に掛けると、セレクタの詳細度で状態色（緑=A週とB週で違うコマ／
+   黄=支援学級で受けるコマ）を上書きしてしまい、偶数行だけ色が消えていた
+   （赤の同日重複は !important のおかげで無事だった）。
+   支援学級の生徒は表の末尾に並ぶため、2人目が偶数行に当たって
+   「1人目にしか色が付かない」ように見えていた（実運用レビュー 2026-07-30）。 */
+.tg-ov-table tbody tr:nth-child(even) td:not(.tg-ov-rot):not(.tg-ov-sup):not(.tg-ov-dup) {
+    background: #fcfbf9;
+}
+
+/* 結果画面の小見出し */
+.tg-res-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 20px 0 6px;
+}
+.tg-res-title::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--brand);
+    margin-right: 8px;
+    vertical-align: 2px;
+}
+
+/* === 手直しページ（Step 10） === */
+.tg-edit-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    position: sticky;
+    /* ステッパーの下に貼り付く。自動保存の警告が出ている間はその高さぶんさらに下げる */
+    top: calc(84px + var(--tg-warn-h, 0px));
+    z-index: 30;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--shadow-card);
+    padding: 10px 14px;
+    margin: 10px 0;
+}
+.tg-edit-bar label { font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.tg-edit-bar-label { font-size: 12px; color: var(--ink-muted); font-weight: 600; }
+
+/* 先生単位のまとめ操作（stickyの操作バー内の2段目） */
+.tg-edit-teacherrow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    flex-basis: 100%;
+    border-top: 1px dashed var(--line);
+    padding-top: 8px;
+}
+
+/* 先生ごとの濃淡セレクト: 選択値がひと目で分かるように色を付ける */
+.tg-cw-sel { padding: 3px 6px; border-radius: 6px; font-size: 12px; }
+.tg-cw-off { color: var(--ink-muted); background: #f1efeb; }
+.tg-cw-strong { color: var(--brand-dark); background: var(--brand-tint); font-weight: 700; }
+
+/* 手動連鎖の作業パネル */
+.tg-manual-panel {
+    background: var(--surface);
+    border: 1.5px solid var(--brand);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin: 8px 0;
+}
+.tg-manual-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* 未配置の授業チップ */
+.tg-unplaced-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    background: var(--ng-bg);
+    border: 1px solid var(--ng-line);
+    border-radius: 10px;
+    padding: 9px 14px;
+    margin: 8px 0;
+}
+.tg-unplaced-chip {
+    background: var(--surface);
+    border: 1.5px solid var(--ng);
+    color: var(--ng);
+    border-radius: 999px;
+    padding: 5px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+}
+.tg-unplaced-chip:hover { background: var(--ng); color: #fff; }
+.tg-unplaced-chip.sel {
+    background: var(--ng);
+    color: #fff;
+    outline: 3px solid #c2410c;
+    outline-offset: 1px;
+}
+
+/* 自動調整の計算中（最大1分ほど）は編集の操作を止める。
+   押せそうに見えるのに効かないのが一番混乱するので、薄く表示し、
+   マウスを乗せても反応しないようにして「いまは触れない」ことを見た目で伝える */
+#step10Body button:disabled,
+#step10Body select:disabled,
+#step10Body input:disabled { opacity: .42; }
+#step10Body button:disabled { pointer-events: none; }
+#step10Body select:disabled { cursor: not-allowed; }
+#step10Body label:has(input:disabled) { opacity: .42; cursor: not-allowed; }
+
+/* === 手直し中の進み具合（Step 10・画面の右下） === */
+/* 時間割を組むときのような全画面の待ち画面にすると、直している盤面が隠れてしまう。
+   小さく右下に固定して、盤面を見ながら進み具合が分かるようにする。
+   ここの「中断する」だけは調整中でも押せる（step10Body の外にあるので上の disabled 一括処理の対象外）。 */
+#tgEditProgress {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 210;            /* 生成中の待ち画面（200）より手前。ただし同時には出ない */
+    display: none;
+    width: min(92vw, 340px);
+    background: var(--surface);
+    border: 2px solid var(--brand);
+    border-radius: 12px;
+    box-shadow: 0 8px 28px rgba(36, 30, 24, .22);
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.55;
+}
+.tg-editprog-head { display: flex; align-items: center; gap: 8px; }
+.tg-editprog-title { font-weight: 700; color: var(--brand-dark); }
+.tg-editprog-spin {
+    width: 16px;
+    height: 16px;
+    flex: none;
+    border: 3px solid var(--line);
+    border-top-color: var(--brand);
+    border-radius: 50%;
+    animation: tg-spin 0.9s linear infinite;
+}
+.tg-editprog-note {
+    display: none;
+    margin-top: 6px;
+    color: var(--ink);
+}
+.tg-editprog-status {
+    margin: 6px 0 10px;
+    color: var(--ink-muted);
+    font-size: 12.5px;
+    min-height: 1.5em;
+}
+#tgEditProgress .btn { width: 100%; }
+/* 狭い画面では横幅いっぱいに置く（右下に寄せると盤面の操作を隠しやすい） */
+@media (max-width: 560px) {
+    #tgEditProgress { right: 8px; left: 8px; bottom: 8px; width: auto; }
+}
+
+/* 違反一覧＋無視ボタン */
+.tg-viol-list { margin: 6px 0 10px; }
+.tg-viol-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--ng-bg);
+    border: 1px solid var(--ng-line);
+    color: #7f1d2b;
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+.tg-viol-item.muted {
+    background: #f4f2ee;
+    border-color: var(--line);
+    color: var(--ink-muted);
+}
+.tg-viol-item .btn { white-space: nowrap; flex-shrink: 0; }
+
+.tg-edit-status {
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13.5px;
+    font-weight: 600;
+    margin: 8px 0;
+}
+.tg-edit-status.ok { background: var(--ok-bg); border: 1px solid var(--ok-line); color: #14532d; }
+.tg-edit-status.ng { background: var(--ng-bg); border: 1px solid var(--ng-line); color: #7f1d2b; }
+
+.tg-guide-steps { margin: 4px 0 6px; padding-left: 1.4em; font-size: 13.5px; }
+.tg-guide-steps li { margin-bottom: 6px; }
+
+/* 凡例チップ: 実際のセルと同じ見た目のサンプルを添える */
+.tg-legend-row { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 4px; }
+.tg-legend-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-muted); }
+.tg-legend-chip i {
+    display: inline-block;
+    width: 22px; height: 16px;
+    border-radius: 3px;
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+}
+.tg-legend-chip .lg-sel    { outline: 3px solid #c2410c; outline-offset: -3px; }
+.tg-legend-chip .lg-cand   { outline: 2px dashed var(--ok); outline-offset: -2px; }
+.tg-legend-chip .lg-edited { outline: 3px solid #7c3aed; outline-offset: -3px; }
+.tg-legend-chip .lg-lock   { box-shadow: inset 0 0 0 2px #6b7280; }
+.tg-legend-chip .lg-rot    { background: #d9ead3; border-color: #b9d3ae; }
+.tg-legend-chip .lg-sup    { background: #fdf6e3; border-color: #e8d9a8; }
+.tg-legend-chip .lg-dup    { background: #f8d7da; border-color: #e5aab1; }
+
+/* 学級名に添えた担任名は配付物（印刷）でだけ見せる */
+.tg-ov-hr { display: none; }
+
+/* 教員別一覧: その先生が出られない時間は網掛け（画面・印刷とも） */
+.tg-ov-table td.tg-ov-na {
+    background-image: repeating-linear-gradient(45deg, #d8d8d8 0 3px, transparent 3px 6px);
+    background-color: #f2f2f2;
+}
+
+/* 行き先の候補（選択中の授業が構造的に入り得るマス） */
+.tg-ov-cand { outline: 2px dashed var(--ok); outline-offset: -2px; }
+
+/* 編集セルの印（旧: JS内のインラインstyleから移設） */
+.tg-ov-sel    { outline: 3px solid #c2410c; outline-offset: -3px; }
+.tg-ov-lock   { box-shadow: inset 0 0 0 2px #6b7280; }
+.tg-ov-edited { outline: 3px solid #7c3aed; outline-offset: -3px; }
+body.tg-editing #tgEditTables td[data-ecid] { cursor: pointer; }
+body.tg-editing #tgEditTables td[data-eaw] { cursor: help; }
+body.tg-editing #tgEdTeachersBody td[data-etid] { cursor: pointer; }
+body.tg-editing #tgEdTeachersBody td[data-eaw] { cursor: help; }
+
+/* 案タブ */
+.tg-alt-tab { border-radius: 8px 8px 0 0; }
+
+/* 使い方 */
+.instructions { border-radius: var(--radius); box-shadow: var(--shadow-card); border: 1px solid var(--line); }
+
+@media print {
+    .tg-stepper, .tg-nav-bar, .instructions { display: none !important; }
+    body { background: #fff; }
+    .tg-step.active { border: none; box-shadow: none; padding: 0; }
+}
+
+/* ---- 配付用の印刷（A4横・1週=1ページ） ----
+   画面には出さず、「印刷・PDFにする」を押したときだけ body の末尾に作られる。 */
+#tgPrintArea { display: none; }
+
+@media print {
+    @page { size: A4 landscape; margin: 8mm; }
+
+    /* 印刷用ページだけを残す（本体は丸ごと隠す） */
+    body > *:not(#tgPrintArea) { display: none !important; }
+    #tgPrintArea { display: block !important; }
+
+    /* ブラウザは既定で背景色・背景画像を印刷しない（Chrome の「背景のグラフィック」は既定オフ）。
+       この指定がないと、緑・黄・網掛けがすべて白で出てしまう。
+       画面のシミュレーションでは色が出るので、実際に印刷するまで気づけない落とし穴（実運用レビュー 2026-07-30）。 */
+    #tgPrintArea,
+    #tgPrintArea * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .tg-print-page {
+        break-after: page;
+        page-break-after: always;   /* 古いブラウザ向け */
+    }
+    .tg-print-page:last-child { break-after: auto; page-break-after: auto; }
+
+    .tg-print-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        border-bottom: 2px solid #000;
+        margin: 0 0 4mm;
+        padding-bottom: 1.5mm;
+    }
+    .tg-print-head h2 { font-size: 14pt; margin: 0; }
+    .tg-print-head span { font-size: 8pt; color: #444; }
+
+    /* 週の全コマ（29〜30列）に加えて学級と教員の2表をA4横1枚に収める。
+       教員のマスは「1-1保体」のように長いので、折り返しを許して切れないようにする
+       （nowrap のままだと幅9mmのマスで文字が消えていた）。 */
+    #tgPrintArea .tg-ov-table {
+        width: 100%;
+        table-layout: fixed;
+        font-size: 6pt;
+        line-height: 1.15;
+        border-collapse: collapse;
+        /* 外周をひと回り太くして表の輪郭をはっきりさせる */
+        border: 1pt solid #333;
+    }
+    #tgPrintArea .tg-ov-table th,
+    #tgPrintArea .tg-ov-table td {
+        /* 0.4pt（≒0.53px）だとPDFにするとき線が丸められて角が欠けることがある。
+           確実に描かれる太さにする（実運用レビュー 2026-07-30） */
+        border: 0.6pt solid #555;
+        padding: 0.3mm 0.1mm;
+        min-width: 0;            /* 画面用の下限（34px）を解除しないと収まらない */
+        overflow: visible;       /* hidden だと、同時刻に2件ある教員のマスで下が切れる */
+        white-space: normal;
+        word-break: break-all;
+        text-align: center;
+        vertical-align: middle;
+    }
+    /* 同じ時刻に複数の授業がある教員のマスは、1件ずつ改行して読ませる */
+    #tgPrintArea .tg-ov-multi { display: block; }
+    /* 表が中途半端に割れないよう、入りきらない表は次のページへ送る */
+    #tgPrintArea .tg-ov-table { break-inside: avoid; page-break-inside: avoid; }
+    #tgPrintArea .tg-ov-table thead th { background: #ddd !important; color: #000 !important; }
+    #tgPrintArea .tg-ov-table th.tg-ov-name {
+        background: #f0f0f0 !important;
+        color: #000 !important;
+        position: static;        /* sticky のままだと印刷時にずれる */
+        width: 16mm;
+    }
+    /* 状態色はグレースケール印刷でも区別できる濃さで残す */
+    #tgPrintArea .tg-ov-table td.tg-ov-rot { background: #d9ead3 !important; }
+    #tgPrintArea .tg-ov-table td.tg-ov-dup { background: #f8d7da !important; }
+    /* 支援学級の生徒が支援学級で受けるコマの色は配付物には要らない（実運用レビュー指示 2026-07-30） */
+    #tgPrintArea .tg-ov-table td.tg-ov-sup { background: none !important; }
+    /* 編集中の印（選択枠・ロック・変更）は配付物に出さない */
+    #tgPrintArea .tg-ov-sel, #tgPrintArea .tg-ov-lock,
+    #tgPrintArea .tg-ov-edited, #tgPrintArea .tg-ov-cand {
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
+    /* 学級名の横に担任名（配付物でだけ見せる。画面では表が詰まるので隠してある）。
+       縦に積むと全行が2行分の高さになりページからあふれるので、横に並べる */
+    #tgPrintArea .tg-ov-hr {
+        display: inline;
+        margin-left: 0.8mm;
+        font-size: 5.5pt;
+        font-weight: normal;
+        color: #333;
+    }
+    /* 「非常勤」の別と、非常勤の「準備」の表示は配る相手には要らない（実運用レビュー指示 2026-07-30）。
+       準備のマスは空きコマとして見せたいので、枠は残して中身だけ消す */
+    #tgPrintArea .tg-ov-a { display: none; }
+    #tgPrintArea .tg-ov-prep {
+        color: transparent !important;
+        background: none !important;
+        font-size: 0 !important;
+    }
+
+    /* 授業時数（週コマ）の列は配付物には要らない（実運用レビュー指示 2026-07-30）。
+       見出し側は rowspan="2" の列、本文側は .tg-ov-count が対応する */
+    #tgPrintArea .tg-ov-table thead th[rowspan="2"],
+    #tgPrintArea .tg-ov-table td.tg-ov-count { display: none; }
+
+    /* 出られない時間の網掛け（グレースケール印刷でも分かるよう線で表現） */
+    #tgPrintArea .tg-ov-table td.tg-ov-na {
+        background-image: repeating-linear-gradient(45deg, #999 0 1.2px, transparent 1.2px 3.5px) !important;
+        background-color: #eee !important;
+    }
+
+    /* 1ページに「学級ごと」と「先生ごと」を続けて載せる */
+    .tg-print-sub {
+        font-size: 9pt;
+        margin: 3mm 0 1mm;
+        padding-left: 1.5mm;
+        border-left: 2.5pt solid #000;
+    }
+    .tg-print-page > .tg-ov-table,
+    .tg-print-page table { break-inside: auto; }
+
+    .tg-print-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1mm 5mm;
+        margin-top: 2.5mm;
+        font-size: 6.5pt;
+        color: #333;
+    }
+    .tg-print-legend span { display: inline-flex; align-items: center; gap: 1.2mm; }
+    .tg-print-legend i {
+        display: inline-block;
+        width: 4.5mm; height: 2.6mm;
+        border: 0.6pt solid #555;
+    }
+    .tg-print-legend .lg-rot { background: #d9ead3; }
+    .tg-print-legend .lg-sup { background: #fdf2d0; }
+    .tg-print-legend .lg-dup { background: #f8d7da; }
+    .tg-print-legend .lg-na {
+        background-image: repeating-linear-gradient(45deg, #999 0 1.2px, transparent 1.2px 3.5px);
+        background-color: #eee;
+    }
+}
+
+/* ---- 無視して組む条件（Step 9 チップ＋優先順位サマリの表示） ---- */
+.tg-ignored-block h3 { margin-bottom: 8px; }
+.tg-ignored-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.tg-ignored-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 6px 4px 10px; border-radius: 999px;
+    background: #fdf2f4; border: 1px solid #e6b8c0; color: #7a1424;
+    font-size: 13px; line-height: 1.4;
+}
+.tg-ignored-del {
+    border: none; background: #a31d2f; color: #fff; cursor: pointer;
+    width: 20px; height: 20px; border-radius: 50%;
+    font-size: 13px; line-height: 1; padding: 0;
+}
+.tg-ignored-del:hover { background: #7a1424; }
+.tg-badge-ignored {
+    background: #a31d2f; color: #fff; border-radius: 4px;
+    padding: 1px 6px; font-size: 11px; margin-left: 4px;
+}
+.tg-prio-ignored .tg-prio-label { text-decoration: line-through; opacity: 0.65; }
+.tg-relax-apply { margin-left: 8px; }
+
+/* ============================================================
+   使いやすさ改善パス（2026-07-29・artifact-designスキル適用）
+   方針: 既存トークン（ブランド・検証済み状態色）は不変。
+   ①見出しをスキャンの錨に ②主役CTAを主役に ③危険操作を遠くに
+   ④クリックターゲットを大きく ⑤キーボード操作の可視化
+   ============================================================ */
+
+/* ① ブロック見出しを「帯」に: ページを流し見しても節目が引っかかる */
+.tg-block h3 {
+    margin: -14px -16px 12px;
+    padding: 9px 14px 8px;
+    background: linear-gradient(to right, var(--brand-tint), rgba(253, 242, 244, 0));
+    border-bottom: 1px solid var(--line);
+    border-left: 4px solid var(--brand);
+    border-radius: 10px 10px 0 0;
+    color: var(--brand-dark);
+    font-size: 14px;
+}
+
+/* ② 生成CTA: Step 9 の主役。カード化して「ここを押す」が迷わない */
+.tg-generate-bar {
+    background: linear-gradient(160deg, var(--brand-tint) 0%, var(--surface) 55%);
+    border: 1.5px solid var(--brand);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 18px 20px;
+    justify-content: center;
+    gap: 12px 18px;
+}
+.tg-generate-bar .btn-large { padding: 15px 44px; font-size: 17px; }
+
+/* ③ 危険操作: 塗りをやめアウトラインに（目に入るが、押したくはならない強さ） */
+.btn-danger {
+    background: transparent;
+    color: var(--ng);
+    border: 1.5px solid var(--ng-line);
+    box-shadow: none;
+}
+.btn-danger:hover { background: var(--ng); border-color: var(--ng); color: #fff; filter: none; }
+/* 「入力を全てリセット」はバー内でひとつ分離して置く */
+#tgReset { margin-left: 22px; }
+
+/* ④ クリックターゲット: 入力・セレクトを指で狙える高さに */
+input[type="text"], input[type="number"], select {
+    padding: 6px 9px;
+    min-height: 33px;
+    background: var(--surface);
+}
+input[type="text"]:hover, input[type="number"]:hover, select:hover { border-color: var(--brand); }
+
+/* 出講できない時間の○×マス: セルを大きく・押せることをhoverで示す */
+.tg-avail-grid td { min-width: 40px; padding: 7px 4px; font-size: 14px; }
+.tg-avail-grid td.ok:hover, .tg-avail-grid td.ng:hover {
+    outline: 2px solid var(--brand);
+    outline-offset: -2px;
+}
+.tg-avail-grid th.tg-day-toggle:hover { color: var(--brand); text-decoration: underline; }
+
+/* ⑤ キーボード操作の可視化 */
+.btn:focus-visible, .tg-stepper button:focus-visible,
+.tg-unplaced-chip:focus-visible, .tg-ignored-del:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+}
+
+/* 数字は桁が揃うと比べやすい（表・統計・順位・時限） */
+table, .tg-stat b, .tg-prio-rank, .tg-step-num, .tg-budget-label { font-variant-numeric: tabular-nums; }
+
+/* ステッパー: いまの場所のラベルもはっきり */
+.tg-stepper button.active { font-weight: 700; }
+
+/* Step 8: 「絶対/できれば」は選んだ状態が色でも分かる */
+select.tg-prio-level { font-weight: 700; border-radius: 7px; }
+select.tg-prio-level.is-hard {
+    background: var(--brand-tint);
+    color: var(--brand-dark);
+    border-color: var(--brand);
+}
+select.tg-prio-level.is-soft { background: #f1efeb; color: var(--ink-muted); }
+select.tg-prio-level:disabled { opacity: .6; }
+/* 並べ替え▲▼: 指で押せる大きさに */
+.tg-prio-list .tg-prio-up, .tg-prio-list .tg-prio-down, .tg-prio-list .tg-prio-remove {
+    min-width: 34px;
+    min-height: 30px;
+}
+
+/* 使い方: 読んだら畳める（開閉は記憶される） */
+details.instructions > summary {
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    list-style: none;
+    padding: 2px 0;
+}
+details.instructions > summary::before { content: "▸ "; color: var(--brand); }
+details.instructions[open] > summary::before { content: "▾ "; }
+details.instructions:not([open]) { padding-top: 10px; padding-bottom: 10px; }
+
+/* 動きに敏感な人への配慮 */
+@media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+}
+
+/* 生成バーの選択肢: 狭い画面では折り返してはみ出さない */
+.tg-budget-label {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    white-space: normal;
+    gap: 4px;
+    max-width: 100%;
+}
+.tg-generate-bar select { max-width: min(100%, 420px); }
+
+/* 先生ごとの重み「絶対に」: 最強の指定であることが一目で分かる */
+.tg-cw-hard { color: #fff; background: var(--brand); font-weight: 700; }

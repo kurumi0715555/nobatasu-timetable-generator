@@ -1,0 +1,19 @@
+[
+  {
+    "name": "exceljs",
+    "version": "4.4.0",
+    "license": "MIT",
+    "files": [
+      {
+        "path": "js/vendor/exceljs.min.js",
+        "sha256": "7e49da68588e250dbb8bba190d2caa8ab3787cc0284bda1d8b2f805c4df742c9",
+        "url": "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"
+      },
+      {
+        "path": "vendor/exceljs/LICENSE",
+        "sha256": "2ed526b7e7c7681dc2347995b5036ddf73dc27d0539cdea59b6d4a72b63a57a0",
+        "url": "https://raw.githubusercontent.com/exceljs/exceljs/v4.4.0/LICENSE"
+      }
+    ]
+  }
+]
