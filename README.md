@@ -26,11 +26,21 @@ DockerなしではPython 3.10以上を用意して実行します。
 
 ```sh
 python3 scripts/build.py
-python3 -m unittest scripts/test_build.py
 python3 -m http.server 8091 --bind 127.0.0.1 --directory build/site
 ```
 
 HTML/CSS/JavaScriptを直接編集できます。 必要なライブラリはローカル同梱しています。初回のDockerイメージ取得にはインターネット接続が必要ですが、通常のアプリ画面は外部CDNを取得しません。
+
+## 開発・テスト
+
+Python 3.10以上を用意し、リポジトリのルートで配布物をビルドしてから検査します。
+
+```sh
+python3 scripts/build.py
+python3 -m unittest scripts/test_build.py
+```
+
+`scripts/test_build.py` は、生成ZIPと配布ファイル構成を検査します。アプリの全操作を機能検証するものではありません。
 
 ## データの扱い
 
