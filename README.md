@@ -54,7 +54,7 @@ python3 -m unittest scripts/test_build.py
 
 この独立版は公式サイトの外枠・広告・ブランド画像を含みません。公式サイトで稼働中の版そのものの対応ソースを示すものではありません。
 
-公開リポジトリ: https://github.com/kurumi0715555/nobatasu-timetable-generator
+公開リポジトリ: https://github.com/kurumi0715555/timetable-generator
 
 開発の正本で検証した変更を、このPublicリポジトリのmainへ反映します。提案はmain向けPull Requestで受け付けます。公開側CIには公式サイトへの配信権限はありません。
 
